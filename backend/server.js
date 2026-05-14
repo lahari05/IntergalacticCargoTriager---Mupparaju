@@ -1,7 +1,10 @@
 const express = require('express');
 const fs = require('fs');
+const cors = require('cors');
+
 const app = express();
 const PORT = 3000;
+app.use(cors());
 
 // Load the parsed cargo JSON from Task 1
 const cargoData = JSON.parse(fs.readFileSync('./cargo.json', 'utf-8'));
