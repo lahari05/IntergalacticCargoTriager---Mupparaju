@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Intergalactic Cargo Triager</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      background: #0a0a1a;
+      color: #e0e0ff;
+      font-family: 'Segoe UI', sans-serif;
+      min-height: 100vh;
+      padding: 40px 20px;
+    }
+
+    h1 {
+      text-align: center;
+      font-size: 2rem;
+      color: #7eb8ff;
+      margin-bottom: 10px;
+      letter-spacing: 2px;
+    }
+
+    .subtitle {
+      text-align: center;
+      color: #556;
+      margin-bottom: 30px;
+      font-size: 0.9rem;
+    }
+
+    .controls {
+      display: flex;
+      justify-content: center;
+      margin-bottom: 30px;
+    }
+
+    #syncBtn {
+      background: #1a1a3e;
+      color: #7eb8ff;
+      border: 1px solid #7eb8ff;
+      padding: 12px 30px;
+      border-radius: 8px;
+      font-size: 1rem;
+      cursor: pointer;
+      transition: all 0.3s;
+    }
+
+    #syncBtn:hover:not(:disabled) {
+      background: #7eb8ff;
+      color: #0a0a1a;
+    }
+
+    #syncBtn:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+
+    table {
+      width: 100%;
+      max-width: 900px;
+      margin: 0 auto;
+      border-collapse: collapse;
+    }
+
+    th {
+      background: #1a1a3e;
+      color: #7eb8ff;
+      padding: 14px 20px;
+      text-align: left;
+      letter-spacing: 1px;
+      font-size: 0.85rem;
+      text-transform: uppercase;
+    }
+
+    td {
+      padding: 14px 20px;
+      border-bottom: 1px solid #1a1a3e;
+      font-size: 0.95rem;
+    }
+
+    tr:hover td {
+      background: #111130;
+    }
+
+    .earth-row td {
+      color: #aaa;
+      font-style: italic;
+      background: #0f0f1a;
+    }
+
+    .earth-badge {
+      background: #2a1a1a;
+      color: #ff6b6b;
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-size: 0.75rem;
+      margin-left: 8px;
+    }
+
+    .weight-bar {
+      display: inline-block;
+      height: 8px;
+      background: #7eb8ff;
+      border-radius: 4px;
+      margin-left: 10px;
+      vertical-align: middle;
+      opacity: 0.5;
+    }
+  </style>
+</head>
+<body>
+
+  <h1>🚀 Intergalactic Cargo Triager</h1>
+  <p class="subtitle">Live manifest feed — sorted by weight</p>
+
+  <div class="controls">
+    <button id="syncBtn" onclick="syncData()">Sync Data</button>
+  </div>
+
+  <table>
+    <thead>
+      <tr>
+        <th>#</th>
+        <th>Cargo ID</th>
+        <th>Destination</th>
+        <th>Date</th>
+        <th>Weight (kg)</th>
+      </tr>
+    </thead>
+    <tbody id="cargoTable">
+      <tr><td colspan="5" style="text-align:center; padding:40px; color:#556;">
+        Loading cargo data...
+      </td></tr>
+    </tbody>
+  </table>
+
+  <script>
+    // Fetch and render on page load
+    fetchAndRender();
+
+    async function fetchAndRender() {
+      try {
+        const res = await fetch('http://localhost:3000/api/cargo');
+        const data = await res.json();
+        renderTable(data);
+      } catch (err) {
+        document.getElementById('cargoTable').innerHTML =
+          `<tr><td colspan="5" style="text-align:center;color:#f66;">
+            Failed to connect to API. Make sure the backend is running.
+          </td></tr>`;
+      }
+    }
+
+    function renderTable(data) {
+      // Business Rule 4:
+      // Sort by weight heaviest to lightest
+      // BUT Earth is always pinned to the bottom
+
+      const earthItems = data.filter(c =>
+        c.destination.toLowerCase() === 'earth'
+      );
+      const otherItems = data.filter(c =>
+        c.destination.toLowerCase() !== 'earth'
+      );
+
+      otherItems.sort((a, b) => b.weight_kg - a.weight_kg);
+
+      const sorted = [...otherItems, ...earthItems];
+
+      const maxWeight = Math.max(...otherItems.map(c => c.weight_kg));
+
+      const tbody = document.getElementById('cargoTable');
+      tbody.innerHTML = sorted.map((cargo, index) => {
+        const isEarth = cargo.destination.toLowerCase() === 'earth';
+        const barWidth = isEarth ? 0 : Math.round((cargo.weight_kg / maxWeight) * 100);
+
+        return `
+          <tr class="${isEarth ? 'earth-row' : ''}">
+            <td>${index + 1}</td>
+            <td>${cargo.cargo_id}</td>
+            <td>
+              ${cargo.destination}
+              ${isEarth ? '<span class="earth-badge">📌 PINNED</span>' : ''}
+            </td>
+            <td>${cargo.date}</td>
+            <td>
+              ${cargo.weight_kg.toLocaleString()} kg
+              ${!isEarth ? `<span class="weight-bar" style="width:${barWidth}px"></span>` : ''}
+            </td>
+          </tr>`;
+      }).join('');
+    }
+
+    // UX Rule: Sync button behavior
+    function syncData() {
+      const btn = document.getElementById('syncBtn');
+
+      // Disable and change text
+      btn.disabled = true;
+      btn.textContent = 'Aligning quantum drives...';
+
+      // After exactly 2.5 seconds, revert
+      setTimeout(() => {
+        btn.disabled = false;
+        btn.textContent = 'Sync Data';
+        fetchAndRender(); // also refresh the data
+      }, 2500);
+    }
+  </script>
+
+</body>
+</html>
